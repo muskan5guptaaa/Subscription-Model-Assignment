@@ -5,8 +5,22 @@ const Plan = require('../models/Plan');
 exports.createSubscription = async (req, res) => {
   try {
     const { planId } = req.body;
+
+    // Validate planId
+    if (!planId) {
+      return res.status(400).json({ success: false, message: "Plan ID is required" });
+    }
+
     const plan = await Plan.findById(planId);
-    if (!plan) return res.status(404).json({ message: "Plan not found" });
+    if (!plan) {
+      return res.status(404).json({ success: false, message: "Plan not found" });
+    }
+
+    // Check if user already has an active subscription
+    const existing = await Subscription.findOne({ userId: req.user.id, status: 'ACTIVE' });
+    if (existing) {
+      return res.status(400).json({ success: false, message: "You already have an active subscription" });
+    }
 
     const startDate = new Date();
     const endDate = new Date(startDate.getTime() + plan.duration * 24 * 60 * 60 * 1000);
@@ -19,9 +33,9 @@ exports.createSubscription = async (req, res) => {
       status: 'ACTIVE',
     });
 
-    res.status(201).json(subscription);
+    res.status(201).json({ success: true, data: subscription });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ success: false, message: "Server error", error: err.message });
   }
 };
 
